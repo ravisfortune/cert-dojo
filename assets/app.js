@@ -211,47 +211,80 @@ function fxLoop(){
   if(parts.length) requestAnimationFrame(fxLoop); else { fxRun=false; fctx.clearRect(0,0,innerWidth,innerHeight); }
 }
 
-/* ---------- hero blueprint animation ---------- */
+/* ---------- hero demo: a live "Practice → Fail → Fix it" loop on real questions ---------- */
 let heroStop=null;
-function blueprint(cv){
-  const ctx=cv.getContext("2d"); let W=0,H=0,raf=0,alive=true; const G=30;
-  const LBL=["agent","tool","MCP","RAG","index","cache","hook","prompt","eval","queue","API","subagent","schema","memory","guardrail","router","copilot","skill"];
-  let boxes=[], links=[], col={};
-  const readCol=()=>{ const cs=getComputedStyle(document.documentElement); col={ink:cs.getPropertyValue("--ink-3").trim(), acc:cs.getPropertyValue("--accent").trim(), acc2:cs.getPropertyValue("--accent-2").trim(), surf:cs.getPropertyValue("--surface").trim()}; };
-  const size=()=>{ const dpr=devicePixelRatio||1; W=cv.clientWidth; H=cv.clientHeight; cv.width=W*dpr; cv.height=H*dpr; ctx.setTransform(dpr,0,0,dpr,0,0); };
-  const spawn=()=>{ const w=(3+Math.random()*3|0)*G, h=(1+Math.random()*2|0)*G; const minX = W>760 ? W*0.58 : 0;
-    const x=Math.round((minX+Math.random()*Math.max(G,W-minX-w))/G)*G, y=Math.round(Math.random()*Math.max(G,H-h)/G)*G;
-    if(boxes.some(b=>x<b.x+b.w+G&&x+w+G>b.x&&y<b.y+b.h+G&&y+h+G>b.y)) return;
-    const b={x,y,w,h,t:0,life:420+Math.random()*420,lbl:LBL[Math.random()*LBL.length|0],hot:Math.random()<.3,alt:Math.random()<.5};
-    boxes.push(b); const o=boxes.filter(z=>z!==b); if(o.length){ const z=o[Math.random()*o.length|0]; links.push({a:b,b:z,t:0}); } };
-  const rr=(x,y,w,h,r)=>{ ctx.beginPath(); ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r); ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath(); };
-  let frame=0;
-  const draw=()=>{
-    if(!alive) return; frame++; if(frame%90===1) readCol();
-    ctx.clearRect(0,0,W,H);
-    if(boxes.length<(W>760?8:4) && Math.random()<.04) spawn();
-    for(const l of links){ l.t++; const A=l.a,B=l.b; const f=Math.max(0,Math.min(Math.min(A.t,A.life-A.t,60)/60,Math.min(B.t,B.life-B.t,60)/60));
-      if(f<=0) continue; const ax=A.x+A.w/2, ay=A.y+A.h/2, bx=B.x+B.w/2, by=B.y+B.h/2;
-      ctx.globalAlpha=f*.7; ctx.strokeStyle=col.ink; ctx.lineWidth=1.2; ctx.setLineDash([5,6]); ctx.lineDashOffset=-l.t*.6;
-      ctx.beginPath(); ctx.moveTo(ax,ay); ctx.lineTo(bx,ay); ctx.lineTo(bx,by); ctx.stroke(); ctx.setLineDash([]);
-      const p=(l.t%160)/160, len=Math.abs(bx-ax)+Math.abs(by-ay), d=p*len; let px,py; const dx=Math.abs(bx-ax);
-      if(d<dx){ px=ax+Math.sign(bx-ax)*d; py=ay; } else { px=bx; py=ay+Math.sign(by-ay)*(d-dx); }
-      ctx.globalAlpha=f; ctx.fillStyle=col.acc; ctx.shadowColor=col.acc; ctx.shadowBlur=10; ctx.beginPath(); ctx.arc(px,py,2.8,0,7); ctx.fill(); ctx.shadowBlur=0; }
-    for(const b of boxes){ b.t++; const f=Math.max(0,Math.min(b.t,b.life-b.t,60)/60); const dr=Math.min(1,b.t/70);
-      const c = b.hot ? (b.alt?col.acc2:col.acc) : col.ink;
-      ctx.globalAlpha=f*.55; ctx.fillStyle=col.surf; rr(b.x+.5,b.y+.5,b.w,b.h,8); ctx.fill(); ctx.globalAlpha=f;
-      ctx.strokeStyle=c; ctx.lineWidth=b.hot?1.6:1.1; const per=2*(b.w+b.h); ctx.setLineDash([per*dr,per]); rr(b.x+.5,b.y+.5,b.w,b.h,8); ctx.stroke(); ctx.setLineDash([]);
-      if(dr>.6){ ctx.globalAlpha=f*(dr-.6)/.4; ctx.fillStyle=c; ctx.font="600 11px JetBrains Mono, monospace"; ctx.fillText(b.lbl, b.x+10, b.y+Math.min(b.h,G)/2+4); } }
-    ctx.globalAlpha=1;
-    boxes=boxes.filter(b=>b.t<b.life); links=links.filter(l=>boxes.includes(l.a)&&boxes.includes(l.b));
-    raf=requestAnimationFrame(draw);
-  };
-  readCol(); size(); for(let i=0;i<6;i++) spawn(); boxes.forEach(b=>b.t=80+Math.random()*120);
-  const ro=new ResizeObserver(size); ro.observe(cv);
-  if(reduced){ draw(); cancelAnimationFrame(raf); } else raf=requestAnimationFrame(draw);
-  const vis=()=>{ if(document.hidden) cancelAnimationFrame(raf); else if(alive && !reduced){ cancelAnimationFrame(raf); raf=requestAnimationFrame(draw); } };
-  document.addEventListener("visibilitychange",vis);
-  return ()=>{ alive=false; cancelAnimationFrame(raf); ro.disconnect(); document.removeEventListener("visibilitychange",vis); };
+function demoPool(){
+  const out=[];
+  for(const e of DATA.exams) for(const q of e.qs){
+    if(q.a.length!==1 || q.o.length<3 || q.o.length>4) continue;
+    const x=q.x.trim(); if(x.length<40 || x.length>150 || /\n|CASE STUDY|HOTSPOT/.test(x)) continue;
+    if(q.o.some(o=>o.length<3 || o.length>64)) continue;
+    out.push({e,q});
+  }
+  return shuffle(out);
+}
+const DEMO_HTML = `<div class="demo" role="img" aria-label="Animated preview: answer a question, get it wrong, then fix it">
+  <div class="demo-stage">
+    <div class="dcard b2"></div><div class="dcard b1"></div>
+    <div class="dcard front" id="dFront"></div>
+    <div class="dcursor"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 2.5 19.5 12l-6.6 1.6 3.6 7-2.9 1.4-3.5-7.1L5 19.6z"/></svg></div>
+    <div class="dtoast"></div>
+  </div>
+  <div class="dsteps"><span data-s="practice">1 · Practice</span><i></i><span data-s="fail">2 · Fail</span><i></i><span data-s="fix">3 · Fix it</span></div>
+</div>`;
+function heroDemo(root){
+  if(!root) return ()=>{};
+  const stage=$(".demo-stage",root), front=$("#dFront",root), cur=$(".dcursor",root), tst=$(".dtoast",root), steps=$$(".dsteps [data-s]",root);
+  const pool=demoPool(); let alive=true, timer=0, n=0;
+  const wait=ms=>new Promise(r=>{ timer=setTimeout(r,ms); });
+  const visible=()=>new Promise(r=>{ if(!document.hidden) return r(); const f=()=>{ if(!document.hidden){ document.removeEventListener("visibilitychange",f); r(); } }; document.addEventListener("visibilitychange",f); });
+  const step=s=>steps.forEach(x=>x.classList.toggle("on",x.dataset.s===s));
+  const say=(msg,cls)=>{ tst.className="dtoast "+cls; tst.textContent=msg; void tst.offsetWidth; tst.classList.add("show"); };
+  // local (untransformed) offset so the cursor lands right even while the stage is tilted
+  const local=el=>{ let x=0,y=0; while(el && el!==stage){ x+=el.offsetLeft; y+=el.offsetTop; el=el.offsetParent; } return {x,y}; };
+  const point=el=>{ const o=local(el); cur.style.opacity=1; cur.style.transform=`translate(${o.x+el.offsetWidth*.7}px,${o.y+el.offsetHeight*.55}px)`; };
+  const click=()=>{ cur.classList.remove("click"); void cur.offsetWidth; cur.classList.add("click"); };
+  const mis=(v,cls)=>{ const m=$(".dmis",front); m.className="dmis "+cls; $("b",m).textContent=v; };
+  function fill({e,q}){
+    front.style.setProperty("--v",e.col);
+    front.innerHTML=`<div class="dhead"><span class="code">${esc(e.code)}</span><span class="dq tab">Question ${n}</span><span class="dmis">Mistakes <b>0</b></span></div>
+      <p class="dstem">${md(q.x)}</p>
+      <div class="dopts">${q.o.map((o,i)=>`<div class="dopt" style="--i:${i}" data-oi="${i}"><b>${LET[i]}</b><span>${md(o)}</span></div>`).join("")}</div>`;
+  }
+  async function run(){
+    let i=0;
+    while(alive){
+      await visible(); if(!alive) return;
+      const item=pool[i++ % pool.length]; n++;
+      front.style.transition="none"; front.classList.remove("out","shake","retry","enter"); void front.offsetWidth; front.style.transition="";
+      fill(item); front.classList.add("enter");
+      cur.style.opacity=0; tst.classList.remove("show"); step("practice");
+      await wait(1700); if(!alive) return;
+      // drop the entrance class once it has played, otherwise removing .shake later re-triggers it
+      front.classList.remove("enter");
+      const opts=$$(".dopt",front), right=opts.find(o=>item.q.a.includes(+o.dataset.oi)), wrongs=opts.filter(o=>o!==right), wrong=wrongs[Math.random()*wrongs.length|0];
+      point(wrong); await wait(900); if(!alive) return;
+      click(); wrong.classList.add("wrong"); front.classList.add("shake"); mis(1,"bad"); step("fail"); say("✕  Wrong — added to Mistakes","bad");
+      await wait(1900); if(!alive) return;
+      tst.classList.remove("show"); front.classList.remove("shake"); front.classList.add("retry"); wrong.classList.replace("wrong","was");
+      $(".dq",front).textContent="↺ Retry"; cur.style.opacity=0;
+      await wait(1000); if(!alive) return;
+      step("fix"); point(right); await wait(900); if(!alive) return;
+      click(); right.classList.add("right"); mis(0,"ok"); say("✓  Fixed — cleared from Mistakes","ok");
+      const r=right.getBoundingClientRect(); burst(r.left+r.width*.7, r.top+r.height/2, 20);
+      await wait(2000); if(!alive) return;
+      cur.style.opacity=0; tst.classList.remove("show"); front.classList.add("out");
+      await wait(650);
+    }
+  }
+  if(!pool.length) return ()=>{};
+  if(reduced){ n=1; fill(pool[0]); const r=$$(".dopt",front).find(o=>pool[0].q.a.includes(+o.dataset.oi)); r&&r.classList.add("right"); steps.forEach(x=>x.classList.add("on")); }
+  else run();
+  const hero=root.closest(".hero");
+  const tilt=ev=>{ const r=stage.getBoundingClientRect(); const x=clamp((ev.clientX-(r.left+r.width/2))/r.width,-1,1), y=clamp((ev.clientY-(r.top+r.height/2))/r.height,-1,1); stage.style.transform=`rotateY(${x*9}deg) rotateX(${-y*7}deg)`; };
+  const untilt=()=>{ stage.style.transform=""; };
+  if(fine && !reduced && hero){ hero.addEventListener("pointermove",tilt); hero.addEventListener("pointerleave",untilt); }
+  return ()=>{ alive=false; clearTimeout(timer); if(hero){ hero.removeEventListener("pointermove",tilt); hero.removeEventListener("pointerleave",untilt); } };
 }
 
 /* ---------- routing ---------- */
@@ -289,7 +322,7 @@ function renderHome(){
   const conts=[]; for(const e of DATA.exams){ const p=partS(e.id); const ps=partsOf(e.id); for(const [k,l] of Object.entries(p.live)){ const ids=ps[+k]; if(!ids) continue; const n=ids.length, a=Object.keys(l.ans||{}).length; conts.push({e,k:+k,n,a,at:l.at||0}); } }
   conts.sort((a,b)=>b.at-a.at);
   app.innerHTML = `<div class="wrap">
-  <section class="hero glass reveal"><canvas id="bp" aria-hidden="true"></canvas><div class="hero-in">
+  <section class="hero glass reveal"><div class="hero-in"><div class="hero-copy">
     <div class="eyebrow"><i></i>${esc(t("eyebrow"))}</div>
     <h1><span class="w">${esc(t("h1a"))}</span> <span class="w grad">${esc(t("h1b"))}</span> <span class="w">${esc(t("h1c"))}</span></h1>
     <p class="lead">${esc(t("lead"))}</p>
@@ -299,7 +332,7 @@ function renderHome(){
       <div class="stat glass-2 reveal" style="--i:4"><b class="tab" data-cu="${tseen}">${tseen}</b><span>${esc(t("sDone"))}</span></div>
       <div class="stat glass-2 reveal ${tm?"hot":""}" style="--i:5"><b class="tab" data-cu="${tm}">${tm}</b><span>${esc(t("sMis"))}</span></div>
     </div>
-  </div></section>
+  </div>${DEMO_HTML}</div></section>
   ${conts.length?`<section class="section"><div class="sh"><div><h2>${esc(t("cont"))}</h2><p>${esc(t("contSub"))}</p></div></div>
     <div class="cont">${conts.slice(0,6).map((c,i)=>`<button class="glass reveal" style="--i:${i};--v:${c.e.col}" data-cx="${c.e.id}" data-ck="${c.k}">${ring(Math.round(100*c.a/c.n), c.a, 44, "ring mini")}<span><b>${esc(c.e.code)} · ${esc(t("partN",{n:c.k+1}))}</b><small class="tab">${c.a}/${c.n} ${esc(t("answered"))}</small></span><span class="pill acc">${IC.play.replace('<svg','<svg width="12" height="12"')} Resume</span></button>`).join("")}</div></section>`:""}
   <section class="section"><div class="sh"><div><h2>${esc(t("pick"))}</h2><p>${esc(t("pickSub"))}</p></div></div>
@@ -318,7 +351,7 @@ function renderHome(){
   $$("[data-cx]").forEach(b=>b.onclick=()=>startMode(b.dataset.cx,"part",{part:+b.dataset.ck}));
   $$("[data-cu]").forEach(el=>countUp(el, +el.dataset.cu));
   animateRings(app);
-  heroStop = blueprint($("#bp"));
+  heroStop = heroDemo($(".demo"));
 }
 
 /* ---------- exam view ---------- */
