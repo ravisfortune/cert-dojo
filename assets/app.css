@@ -536,3 +536,17 @@ footer.credit{padding-block:40px 40px;color:var(--ink-3);font-size:12.5px}
   *,*::before,*::after{animation-duration:.001ms!important;animation-delay:0ms!important;animation-iteration-count:1!important;transition-duration:.001ms!important}
   .glow{display:none}
 }
+
+/* live presence badge */
+.live{display:flex;align-items:center;gap:9px;font-size:12px;font-weight:600;color:var(--ink-2);padding:8px 11px;border-radius:12px;background:var(--ok-soft);border:1px solid color-mix(in srgb,var(--ok) 25%,transparent);white-space:nowrap;overflow:hidden;animation:fade .5s var(--ease) backwards}
+.live i{position:relative;width:8px;height:8px;border-radius:50%;background:var(--ok);flex:none}
+.live i::after{content:"";position:absolute;inset:0;border-radius:50%;background:var(--ok);animation:livePing 1.8s ease-out infinite}
+@keyframes livePing{to{transform:scale(2.8);opacity:0}}
+.live span{overflow:hidden;text-overflow:ellipsis}
+.live b{color:var(--ink);font-family:var(--f-mono);display:inline-block}
+.live.bump b{animation:bump .45s var(--spring)}
+.live-top{margin-left:auto;padding:6px 10px}
+body.rail .live{justify-content:center;padding:9px 0}
+body.rail .live span{display:none}
+@media (max-width:959px){body.rail .live span{display:inline}body.rail .live{justify-content:flex-start;padding:8px 11px}}
+@media (prefers-reduced-motion:reduce){.live i::after{display:none}}

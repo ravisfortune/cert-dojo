@@ -11,7 +11,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600;700&display=swap">
-<link rel="stylesheet" href="assets/app.css?v=3">
+<link rel="stylesheet" href="assets/app.css?v=4">
 <script>
   // apply saved theme before first paint to avoid a flash
   try{var s=JSON.parse(localStorage.getItem("certdojo.v1")||"{}");if(s.theme&&s.theme!=="auto")document.documentElement.setAttribute("data-theme",s.theme)}catch(e){}
@@ -39,6 +39,7 @@
   <div class="side-scroll" id="sideNav"></div>
   <div class="side-foot">
     <div class="theme-seg" id="themeSeg" role="group" aria-label="Theme"></div>
+    <div class="live" id="liveSide" hidden><i></i><span></span></div>
     <div class="saved" title="Progress is saved in this browser"><i></i><span>Progress saved on this device</span></div>
   </div>
 </aside>
@@ -48,12 +49,13 @@
   <header class="topbar glass">
     <button class="iconbtn burger" id="burger" aria-label="Open menu" aria-controls="side" aria-expanded="false"><span><span></span><span></span><span></span></span></button>
     <span class="brand-name">Cert Dojo</span>
+    <span class="live live-top" id="liveTop" hidden><i></i><span></span></span>
   </header>
   <main id="app"></main>
 </div>
 <canvas id="fx" aria-hidden="true"></canvas>
 
-<script src="assets/data.js?v=3"></script>
-<script src="assets/app.js?v=3"></script>
+<script src="assets/data.js?v=4"></script>
+<script src="assets/app.js?v=4"></script>
 </body>
 </html>

@@ -167,6 +167,7 @@ function renderSide(){
   $$("#sideNav [data-ex]").forEach(b=>b.onclick=()=>leaveGuard(()=>go("exam",b.dataset.ex)));
   $("#sideNav [data-home]").onclick=()=>leaveGuard(()=>go("home"));
   requestAnimationFrame(placeInd);
+  PRESENCE.nudge(); // runs on every state change (start/finish/navigate); only pings if test status flipped
 }
 // the sliding indicator remembers where it was so it glides between items across re-renders
 const LASTIND={};
@@ -733,9 +734,41 @@ document.addEventListener("keydown",ev=>{
 });
 addEventListener("resize", ()=>placeInd(), {passive:true});
 
+/* ---------- live presence ("N online") ----------
+   Anonymous: a random id per browser, no names. Pings only while the tab is visible.
+   If the endpoint is missing (e.g. GitHub Pages) or the free quota runs out, badges stay hidden. */
+const PRESENCE = (() => {
+  const URL_ = "api/presence", EVERY = 45000;
+  let pid; try{ pid = localStorage.getItem("certdojo.pid"); if(!pid){ pid = (crypto.randomUUID?.() || Math.random().toString(36).slice(2)+Date.now().toString(36)); localStorage.setItem("certdojo.pid", pid); } }catch(e){ pid = Math.random().toString(36).slice(2)+Date.now().toString(36); }
+  let timer=0, fails=0, dead=false, wasTesting=false, last=null;
+  const els = () => [$("#liveSide"), $("#liveTop")].filter(Boolean);
+  function show(d){
+    const changed = last && last.online!==d.online; last=d;
+    const txt = d.online<=1 ? `<b>Just you</b> online` : `<b>${d.online}</b> online${d.testing?` · <b>${d.testing}</b> in a test`:""}`;
+    const short = `<b>${Math.max(1,d.online)}</b> online`;
+    for(const el of els()){ $("span",el).innerHTML = el.id==="liveTop" ? short : txt; el.hidden=false; el.title=`${d.online} online now · ${d.testing} taking a test`; if(changed){ el.classList.remove("bump"); void el.offsetWidth; el.classList.add("bump"); } }
+  }
+  const hide = () => els().forEach(el=>el.hidden=true);
+  async function ping(){
+    clearTimeout(timer); if(dead || document.hidden) return;
+    const testing = !!live();
+    try{
+      const r = await fetch(URL_, {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({id:pid, testing, wasTesting:wasTesting&&!testing}), keepalive:true});
+      if([404,405,503].includes(r.status)){ dead=true; hide(); return; }
+      if(!r.ok) throw new Error(r.status);
+      show(await r.json()); fails=0; wasTesting=testing;
+    }catch(e){ if(++fails>=3) hide(); }
+    timer = setTimeout(ping, EVERY * (fails ? Math.min(4, fails+1) : 1));
+  }
+  document.addEventListener("visibilitychange", ()=>{ if(!document.hidden) ping(); });
+  addEventListener("pagehide", ()=>{ if(dead) return; try{ navigator.sendBeacon(URL_, new Blob([JSON.stringify({id:pid, left:true})], {type:"application/json"})); }catch(e){} });
+  return { start: ()=>setTimeout(ping, 600), nudge: ()=>{ if(!dead && !!live()!==wasTesting) ping(); } };
+})();
+
 /* ---------- boot ---------- */
 document.body.classList.toggle("rail", !!S.rail);
 applyTheme();
 const r0=parseHash(); VIEW={name:r0.name,arg:r0.arg}; setHash(hashFor(VIEW.name,VIEW.arg));
 viewAnim(); route();
+PRESENCE.start();
 })();
